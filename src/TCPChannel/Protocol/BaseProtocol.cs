@@ -51,10 +51,6 @@ namespace TCPChannel.Protocol
 
         public abstract void ProcessIncomingMessage(byte[] rawMessage);
 
-        public abstract byte[] GetHeader(Transport.ITransport transport);
-
-        public abstract int GetPayloadSize(byte[] rawHeader);
-
         public void RegisterHandler(IEventHandler eh)
         {
             this.eventHandler +=new BaseEvent.TcpEventHandler(eh.HandleEvent);

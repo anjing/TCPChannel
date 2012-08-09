@@ -18,14 +18,13 @@ namespace TCPChannel
 
         private int port;
         private ITransport transport;
+        private TcpTransportListener tcpListener;
         private Queue<byte[]> rawMessageQ;
 
         private IProtocol tcpProtocol;
         // threads
         private Thread dataListener;                            // processes raw data from the debug port - creates MDS debug protocol messages
         private Thread messageProcessor;                        // processes MDS debug protocol messages
-        private EventWaitHandle connectGate;                    // gate used to synchronize the start of the debug session
-        private EventWaitHandle listenGate;                     // gate used to guarantee listeners are running before sending messages
         private EventWaitHandle processGate;
         static private object traceLock = new object();
 
@@ -33,27 +32,25 @@ namespace TCPChannel
         {
             // initialize
             rawMessageQ = new Queue<byte[]>();
-            connectGate = new AutoResetEvent(false);
-            listenGate = new AutoResetEvent(false);
             processGate = new AutoResetEvent(false);
         }
 
+        /// <summary>
+        /// Start listener port and process messages received
+        /// </summary>
+        /// <param name="port"></param>
+        /// <returns></returns>
         public State Start(int port)
         {
-            Console.WriteLine("Start listen port:{0}", port);
-            this.port = port;
-
             tcpProtocol = new TcpProcotol();
             tcpProtocol.RegisterHandler(this);
+
+            Console.WriteLine("Start listen port:{0}", port);
+            this.port = port;
             try
             {
-                if ( !isRunning )
+                if (!isRunning)
                 {
-                    transport = CreateTransport();
-                    if (transport == null)
-                        return State.ERROR;
-                    else
-                        Console.WriteLine("Connected");                    
                     System.Console.Out.WriteLine("Starting listen threads...");
                     isRunning = true;
                     ThreadStart ts = new ThreadStart(ListenForData);
@@ -65,49 +62,17 @@ namespace TCPChannel
                     messageProcessor = new Thread(ts);
                     messageProcessor.Start();
 
-
-                    System.Console.Out.WriteLine("Starting data processors...");
-                    try
-                    {
-                        System.Console.Out.WriteLine("Started listening for messages...");
-
-                        listenGate.WaitOne();
-
-                        /// Send event to start session
-                        System.Console.Out.WriteLine("Starting debug session...");
-
-                        if (tcpProtocol == null)
-                        {
-                            Disconnect();
-                            System.Console.Out.WriteLine("Error sending handshake: no protocol");
-                            return State.ERROR;
-                        }
-
-                        // Block waiting for session reset
-                        System.Console.Out.WriteLine("Wait for handshake response...");
-                        connectGate.WaitOne();
-                        System.Console.Out.WriteLine("DONE!");
-                    }
-                    catch (ThreadInterruptedException tie)
-                    {
-                        Disconnect();
-                        throw;
-                    }
-
                 }
+                state = State.SUCCESS;
             }
-            catch(Exception e)
+            catch (Exception e)
             {
                 state = State.ERROR;
             }
-            return State.SUCCESS;
+            return state;
         }
 
         #region Message Processor Thread
-        /// <summary>
-        /// This method is run in a thread to process all the messages that
-        /// come in from the RE.
-        /// </summary>
         private void ProcessMessageList()
         {
             bool error = false;
@@ -174,38 +139,21 @@ namespace TCPChannel
             bool error = false;
             try
             {
-                // Open listen gate - listener's are up.
-                listenGate.Set();
+                tcpListener = new TcpTransportListener(TcpTransport.LOCALHOST, port);
+                tcpListener.Start();
 
                 // Loop checking for data to become available
                 while (isRunning)
                 {
-                    // Check to see if the client connection has been lost
+                    // wait for client to connect
+                    TcpClient client = tcpListener.WaitForConnection();
+                    transport = new TcpTransport(client);
                     if (!transport.IsConnected())
-                        break; // Update state, notify other threads - exit gracefully
+                        break;
 
-                    // Retrieve header
                     if (tcpProtocol == null)
                         break;
-                    byte[] headerRaw = tcpProtocol.GetHeader(transport);
-
-                    if (headerRaw == null)
-                        break;  // Connection to client has been lost - stop processing
-                    // Retrieve body size, read in remainder of message  
-                    int payloadSize = tcpProtocol.GetPayloadSize(headerRaw);
-                    byte[] bodyRaw;
-                    int bytesRead = transport.Read(payloadSize, out bodyRaw, Timeout.Infinite);
-                    if (bytesRead == 0)
-                        break; // Connection to client has been lost - stop processing
-                    // Combine the header and body of the message
-                    byte[] messageRaw = new byte[headerRaw.Length + bodyRaw.Length];
-                    headerRaw.CopyTo(messageRaw, 0);
-                    bodyRaw.CopyTo(messageRaw, headerRaw.Length);
-
-                    // Process Message
-                    if (tcpProtocol == null || bytesRead < payloadSize)
-                        break; // Connection to client has been lost - stop processing
-
+                    byte[] messageRaw = transport.Read();
                     // Add new message to inbound message queue
                     lock (rawMessageQ)
                     {
@@ -214,22 +162,20 @@ namespace TCPChannel
                     processGate.Set(); // wake up the process thread to process new messages
                 }
             }
-            catch (ThreadInterruptedException)
-            {
+            //catch (ThreadInterruptedException)
+            //{
 
-            }
-            catch (ThreadAbortException)
-            {
+            //}
+            //catch (ThreadAbortException)
+            //{
 
-            }
+            //}
             catch (Exception e)
             {
-                // Set ERROR state
                 error = true;
             }
             finally
             {
-                // Tell processor thread that no new data is being listened for
                 Disconnect();
                 if (error)
                     state = State.ERROR;
@@ -240,30 +186,25 @@ namespace TCPChannel
         {
             try
             {
-                switch (state)
+                isRunning = false;
+                processGate.Set();  // make sure we aren't proccessing anything
+                if (transport != null && ((messageProcessor != null && !messageProcessor.Join(1500)) || (dataListener != null && !dataListener.Join(1500))))
                 {
-                    case State.ERROR:
-                        isRunning = false;
-                        processGate.Set();  // make sure we aren't proccessing anything
-                        if (transport != null && ((messageProcessor != null && !messageProcessor.Join(1500)) || (dataListener != null && !dataListener.Join(1500))))
-                        {
-                            transport.Close();
-                            if (messageProcessor.ThreadState == ThreadState.Running && Thread.CurrentThread != messageProcessor)
-                                messageProcessor.Abort();
-                            if(dataListener.ThreadState == ThreadState.Running && Thread.CurrentThread != dataListener)
-                                dataListener.Abort();
-                        }
-
-                        System.Console.Out.WriteLine("Killing protocol");
-
-                        if (tcpProtocol != null)
-                        {
-                            tcpProtocol.Close();
-                        }
-
-                        state = State.CANCELED;
-                        break;
+                    transport.Close();
+                    if (messageProcessor.ThreadState == ThreadState.Running && Thread.CurrentThread != messageProcessor)
+                        messageProcessor.Abort();
+                    if (dataListener.ThreadState == ThreadState.Running && Thread.CurrentThread != dataListener)
+                        dataListener.Abort();
                 }
+
+                System.Console.Out.WriteLine("Killing protocol");
+
+                if (tcpProtocol != null)
+                {
+                    tcpProtocol.Close();
+                }
+
+                state = State.CANCELED;
 
             }
             catch (Exception e)
@@ -274,7 +215,7 @@ namespace TCPChannel
                     transport.Close();
                 }
                 state = State.ERROR;
-                if(tcpProtocol != null)
+                if (tcpProtocol != null)
                     tcpProtocol.Close();
                 throw new Exception("Disconnect exception", e);
             }
@@ -323,9 +264,7 @@ namespace TCPChannel
                         dataListener.Abort();
                     tcpProtocol = null;
                 }
-                
             }
-            
         }
         #endregion
     }

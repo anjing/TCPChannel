@@ -18,18 +18,14 @@ namespace TCPChannel.Protocol
         #region implemenation of BaseProtocol
         public override void ProcessIncomingMessage(byte[] rawMessage)
         {
-            queue.QueueEvent(new UpdateMediaEvent(1));
+            queue.QueueEvent(GetEventFromMsg(rawMessage));
         }
 
-        public override byte[] GetHeader(Transport.ITransport transport)
+        private IEvent GetEventFromMsg(byte[] rawMessage)
         {
             throw new NotImplementedException();
         }
 
-        public override int GetPayloadSize(byte[] rawHeader)
-        {
-            throw new NotImplementedException();
-        }
         #endregion
 
         #region IEventQueueCallback

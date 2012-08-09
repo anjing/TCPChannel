@@ -24,6 +24,8 @@ namespace TCPChannel.Transport
         /// <param name="timeout">The max timeout to wait (in milliseconds) for data to be received before timing out.</param>
         /// <returns>A byte array of the data that was read.</returns>
         int Read(int numBytesToRead, out byte[] data, int timeout);
+        //read all data 
+        byte[] Read();
 
         /// <summary>
         /// Closes the connection.

@@ -10,12 +10,12 @@ namespace TCPChannel.Protocol
     public interface IProtocol
     {
         /// <summary>
-        /// Close/clean up the debug protocol
+        /// Close/clean up the protocol
         /// </summary>
         void Close();
 
         /// <summary>
-        /// Specifies if the debug protocol is closed for this session
+        /// Specifies if the protocol is closed for this session
         /// </summary>
         bool isClosed();
 
@@ -26,35 +26,13 @@ namespace TCPChannel.Protocol
         void ProcessIncomingMessage(byte[] rawMessage);
 
         /// <summary>
-        /// Retrieves the header from the transport layer - required since
-        /// the length of the header can vary from version to version.
-        /// Especially an issue for dynamic length headers.
+        /// Register a handler 
         /// </summary>
-        /// <param name="transport">Transport layer to read header from</param>
-        /// <returns>Byte array containing the header of the message</returns>
-        byte[] GetHeader(ITransport transport);
-
-        /// <summary>
-        /// Retrieve the size of the payload, in bytes.
-        /// </summary>
-        /// <param name="rawHeader">Byte array of header data</param>
-        int GetPayloadSize(byte[] rawHeader);
-
-        /// <summary>
-        /// Register a handler which is notified of Debug Events.
-        /// Handlers required for the following:
-        ///  - Sending messages (RuntimeController)
-        ///  - Processing debug events (Visual Studio)
-        ///  - Debug session events (RuntimeController)
-        ///  - Application updates (Application Manager)
-        /// </summary>
-        /// <param name="deh">Handler to be added</param>
         void RegisterHandler(IEventHandler eh);
 
         /// <summary>
         /// Unregister a handler
         /// </summary>
-        /// <param name="deh">Handler to be added</param>
         void UnregisterHandler(IEventHandler eh);
     }
 }

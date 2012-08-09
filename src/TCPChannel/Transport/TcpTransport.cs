@@ -105,14 +105,11 @@ namespace TCPChannel.Transport
         /// </summary>
         public int Read(int numBytesToRead, out byte[] data, int timeout)
         {
-            // Block on Read() call for timeout specified, as long as the 
-            // client is connected
+            // Block on Read() call for timeout specified, as long as the client is connected
             data = new byte[numBytesToRead];
             int offset = 0;
-
             // Set timeout
             dataStream.ReadTimeout = timeout;
-
             try
             {
                 while (offset < numBytesToRead)
@@ -137,6 +134,30 @@ namespace TCPChannel.Transport
             }
             return offset;
         }
+
+
+        public byte[] Read()
+        {
+            if (dataStream.CanRead)
+            {
+                MemoryStream mem = new MemoryStream();
+                byte[] myReadBuffer = new byte[1024];
+                int numberOfBytesRead = 0;
+                do
+                {
+                    numberOfBytesRead = dataStream.Read(myReadBuffer, 0, myReadBuffer.Length);
+                    mem.Write(myReadBuffer, 0, numberOfBytesRead);
+                }
+                while (dataStream.DataAvailable);
+                return mem.GetBuffer();
+            }
+            else
+            {
+                Console.WriteLine("Sorry.  You cannot read from this NetworkStream.");
+                return null;
+            } 
+        }
+
 
         /// <summary>
         /// See ITransport
@@ -170,9 +191,6 @@ namespace TCPChannel.Transport
         /// </summary>
         public void Close()
         {
-#if TCPCTRACE
-            Logger.LogEntry("TcpTransport.Close(): cleaning up resources.", Logger.EntryType.Information);
-#endif
             if (dataStream != null)
             {
                 dataStream.Close();

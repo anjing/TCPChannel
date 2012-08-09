@@ -110,7 +110,6 @@ namespace TCPChannel.Transport
                     }
                     Thread.Sleep(500);  //TODO: Add timout
                 }
-                /// Busy-loop cancelled - stopped externally                    
             }
             return null;
             ///TODO: Throw transport exception if not in listening state and attempting
