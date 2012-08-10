@@ -5,6 +5,7 @@ using System.Text;
 using System.Net.Sockets;
 using System.Threading;
 using System.Net;
+using System.Diagnostics;
 
 namespace TCPChannel.Transport
 {
@@ -51,8 +52,17 @@ namespace TCPChannel.Transport
                 /// Create our listening socket to wait for connection/ping
                 if (listener == null)
                 {
-                    IPAddress localAddr = IPAddress.Parse(host);
-                    listener = new TcpListener(localAddr, port);
+                    try
+                    {
+                        IPAddress localAddr = IPAddress.Parse(host);
+                        listener = new TcpListener(localAddr, port);
+                    }
+                    catch (Exception e)
+                    {
+                        Debug.WriteLine("can not start listener, error{0}", e.Message);
+                        state = LISTENERSTATE.STOPPED;
+                        return;
+                    }
                 }
                 listener.Start();
 

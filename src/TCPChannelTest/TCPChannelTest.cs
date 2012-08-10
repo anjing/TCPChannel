@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using TCPChannel.Transport;
+using System.Threading;
 
 namespace TCPChannelTest
 {
@@ -60,13 +61,13 @@ namespace TCPChannelTest
         //
         #endregion
 
-        [TestMethod]
-        public void TCPEventControllerTest()
-        {
-            int port = 45459;
-            TCPChannel.TcpEventController controller = new TCPChannel.TcpEventController();
-            Assert.IsTrue(controller.Start(45459) == TCPChannel.State.SUCCESS);
-            controller.Stop();
-        }
+        //[TestMethod]
+        //public void TCPEventControllerTest()
+        //{
+        //    int port = 45459;
+        //    TCPChannel.TcpHost host = new TCPChannel.TcpHost();            
+        //    Assert.IsTrue(host.Start(port) == TCPChannel.State.SUCCESS);
+            
+        //}
     }
 }

@@ -24,6 +24,12 @@ namespace TCPChannel.Transport
         private NetworkStream dataStream;
         #endregion
 
+        public static ITransport CreateTransport(int port, string host = null)
+        {
+            string targethost = string.IsNullOrEmpty(host) ? LOCALHOST : host;
+            return new TcpTransport(targethost, port, 0);
+        }
+
         #region ctors
         /// <summary>
         /// Constructor.
@@ -31,15 +37,14 @@ namespace TCPChannel.Transport
         /// <param name="host"></param>
         /// <param name="port"></param>
         /// <param name="retryCount">Number of times to try connecting to host:port - 0 for infinite</param>
-        public TcpTransport(String host, int port, int retryCount)
+        private TcpTransport(String host, int port, int retryCount)
         {
             // Open our connection to the specified endpoint and get data stream
             IPEndPoint endPoint = new IPEndPoint(IPAddress.Parse(host), port);
             client = new TcpClient();
 
-            ///Try to make the connection several times before reporting
-            ///an error
-            for (int a = 0; a < retryCount || retryCount == 0; a++)
+            //Try to make the connection several times before reporting an error
+            for (int i = 0; i < retryCount || retryCount == 0; i++)
             {
                 try
                 {
@@ -51,17 +56,14 @@ namespace TCPChannel.Transport
                     /// If the exception is NOT a "Connection Refused" exception
                     /// OR we have passed the retry count - throw the SE back up.
                     if (se.SocketErrorCode != SocketError.ConnectionRefused
-                        || (a < retryCount))
+                        || (i < retryCount))
                     {
                         throw se;
                     }
                 }
                 Thread.Sleep(500);
             }
-            // Get client stream
             dataStream = client.GetStream();
-
-            // Set write timeout
             dataStream.WriteTimeout = WRITE_TIMEOUT;
         }
 
@@ -69,8 +71,6 @@ namespace TCPChannel.Transport
         {
             this.client = client;
             this.dataStream = this.client.GetStream();
-
-            // Set write timeout
             dataStream.WriteTimeout = WRITE_TIMEOUT;
         }
 

@@ -11,7 +11,6 @@ namespace TCPChannel.Protocol
     {
         public event Event.BaseEvent.TcpEventHandler eventHandler;
         private bool closed = false;
-        private int numHandlers = 0;
 
         public virtual void Close()
         {
@@ -39,7 +38,7 @@ namespace TCPChannel.Protocol
                 if (handler != null)
                     handler(this, e);
             }
-            catch (Exception ex)
+            catch
             {                
             }
         }
@@ -54,13 +53,11 @@ namespace TCPChannel.Protocol
         public void RegisterHandler(IEventHandler eh)
         {
             this.eventHandler +=new BaseEvent.TcpEventHandler(eh.HandleEvent);
-            numHandlers++;
         }
 
         public void UnregisterHandler(Event.IEventHandler eh)
         {
             this.eventHandler -= new BaseEvent.TcpEventHandler(eh.HandleEvent);
-            numHandlers--;
         }
     }
 }

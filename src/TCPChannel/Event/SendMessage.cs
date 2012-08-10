@@ -7,22 +7,16 @@ namespace TCPChannel.Event
 {
     public interface ISendMessage : IEvent
     {
-        byte[] GetBytesToSend();
     }
 
+    [Serializable]
     public class SendMessage : BaseEvent, ISendMessage
     {
-        private byte[] bytesToSend;
 
         public SendMessage(byte[] bytesToSend)
-            : base(-1)
+            : base(-1, bytesToSend)
         {
-            this.bytesToSend = bytesToSend;
         }
 
-        public byte[] GetBytesToSend()
-        {
-            return this.bytesToSend;
-        }
     }
 }

@@ -5,10 +5,15 @@ using System.Text;
 
 namespace TCPChannel.Event
 {
-    public class UpdateMediaEvent : BaseEvent
+    public interface IUpdateMediaEvent : IEvent
+    {
+    }
+
+    [Serializable]
+    public class UpdateMediaEvent : BaseEvent, IUpdateMediaEvent
     {
         public UpdateMediaEvent(int id)
-            : base(id)
+            : base(id, null)
         {
         }
 

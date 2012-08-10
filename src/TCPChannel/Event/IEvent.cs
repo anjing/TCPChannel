@@ -8,5 +8,6 @@ namespace TCPChannel.Event
     public interface IEvent
     {
         int ID { get; }
+        byte[] Data { get; }
     }
 }

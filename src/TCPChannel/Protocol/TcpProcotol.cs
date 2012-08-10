@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using TCPChannel.Event;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
 
 namespace TCPChannel.Protocol
 {
@@ -23,7 +25,10 @@ namespace TCPChannel.Protocol
 
         private IEvent GetEventFromMsg(byte[] rawMessage)
         {
-            throw new NotImplementedException();
+            BinaryFormatter formatter = new BinaryFormatter();
+            MemoryStream mem = new MemoryStream(rawMessage);
+            IEvent e = formatter.Deserialize(mem) as IEvent;
+            return e;
         }
 
         #endregion

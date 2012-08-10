@@ -12,6 +12,6 @@ namespace TCPChannel.Event
 
     public class Disconnected : BaseEvent, IDisconnected
     {
-        public Disconnected() : base(-1) { }
+        public Disconnected() : base(-1, null) { }
     }
 }
