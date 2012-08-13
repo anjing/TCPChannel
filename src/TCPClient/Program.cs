@@ -15,12 +15,11 @@ namespace TCPClient
         static void Main(string[] args)
         {
             string quit = "n";
-            ITransport transport = TcpTransport.CreateTransport(45459);
-            if (transport != null)
+            while (quit == "n")
             {
-                while (quit == "n")
+                ITransport transport = TcpTransport.CreateTransport(45459);
+                if (transport != null)
                 {
-
                     IEvent e = new TcpEvent((int)EventId.Media, null);
                     BinaryFormatter bf = new BinaryFormatter();
                     MemoryStream mem = new MemoryStream();
@@ -28,13 +27,18 @@ namespace TCPClient
                     transport.Send(mem.GetBuffer());
                     Console.WriteLine("Quit?(y/n)");
                     quit = Console.ReadLine();
+                    transport.Close();
+                    //if (quit != "n")
+                    //{
+                    //    Console.WriteLine("send disconned event to Server to close the server");
+                    //    IEvent d = new TcpEvent((int)EventId.Disconnect, null);
+                    //    BinaryFormatter bfd = new BinaryFormatter();
+                    //    MemoryStream memd = new MemoryStream();
+                    //    bfd.Serialize(memd, d);
+                    //    transport.Send(memd.GetBuffer());
+                    //    transport.Close();
+                    //}
                 }
-
-                IEvent d = new TcpEvent((int)EventId.Disconnect, null);
-                BinaryFormatter bfd = new BinaryFormatter();
-                MemoryStream memd = new MemoryStream();
-                bfd.Serialize(memd, d);
-                transport.Send(memd.GetBuffer());
             }
         }
     }

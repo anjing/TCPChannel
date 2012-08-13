@@ -22,8 +22,7 @@ namespace TCPChannel.Transport
             STOPPED,
             STOPPING,
             LISTENING,
-            WAITING,
-            CONNECTED
+            WAITING
         }
 
         #region fields
@@ -117,7 +116,7 @@ namespace TCPChannel.Transport
                         if (listener.Pending())
                         {
                             client = listener.AcceptTcpClient();
-                            state = LISTENERSTATE.CONNECTED;
+                            state = LISTENERSTATE.LISTENING;
                             return client;
                         }
                     }

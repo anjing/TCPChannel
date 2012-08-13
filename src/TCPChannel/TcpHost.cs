@@ -146,15 +146,11 @@ namespace TCPChannel
                 try
                 {
                     // wait for client to connect
-                    if (tcpListener.State != TcpTransportListener.LISTENERSTATE.CONNECTED)
-                    {
-                        TcpClient client = tcpListener.WaitForConnection();
-                        Console.WriteLine("Client connected");
-                        transport = new Transport.TcpTransport(client);
-                    }
+                    TcpClient client = tcpListener.WaitForConnection();
+                    Console.WriteLine("Client connected");
+                    transport = new Transport.TcpTransport(client);
                     if (!transport.IsConnected())
                         break;
-
                     if (tcpProtocol == null)
                         break;
                     byte[] messageRaw = transport.Read();
