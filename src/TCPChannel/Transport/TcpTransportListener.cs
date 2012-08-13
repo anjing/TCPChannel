@@ -12,17 +12,18 @@ namespace TCPChannel.Transport
     /// <summary>
     /// Wraper class that handles all connection and data fetching for a "server" connection
     /// </summary>
-    public class TcpTransportListener
+    public class TcpTransportListener 
     {
         /// <summary>
         /// state of the transort/socket
         /// </summary>
-        private enum LISTENERSTATE
+        public enum LISTENERSTATE
         {
             STOPPED,
             STOPPING,
             LISTENING,
-            WAITING
+            WAITING,
+            CONNECTED
         }
 
         #region fields
@@ -42,6 +43,8 @@ namespace TCPChannel.Transport
         #endregion
 
         #region public methods
+
+        public LISTENERSTATE State { get { return state; } }
         /// <summary>
         /// start the socket and begin listening
         /// </summary>
@@ -114,11 +117,11 @@ namespace TCPChannel.Transport
                         if (listener.Pending())
                         {
                             client = listener.AcceptTcpClient();
-                            state = LISTENERSTATE.LISTENING;
+                            state = LISTENERSTATE.CONNECTED;
                             return client;
                         }
                     }
-                    Thread.Sleep(500);  //TODO: Add timout
+                    Thread.Sleep(100);  //TODO: Add timout
                 }
             }
             return null;

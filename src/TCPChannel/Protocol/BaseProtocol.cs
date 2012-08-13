@@ -9,7 +9,7 @@ namespace TCPChannel.Protocol
 {
     public abstract class BaseProtocol : IProtocol
     {
-        public event Event.BaseEvent.TcpEventHandler eventHandler;
+        public event Event.TcpEvent.TcpEventHandler eventHandler;
         private bool closed = false;
 
         public virtual void Close()
@@ -17,7 +17,7 @@ namespace TCPChannel.Protocol
             if (!this.isClosed())
             {
                 closed = true;
-                OnEvent(new Disconnected());
+                OnEvent(new TcpEvent((int)EventId.Disconnect, null));
             }            
         }
 
@@ -34,7 +34,7 @@ namespace TCPChannel.Protocol
             {
                 IEvent e = obj as IEvent;
                 // avoid race condition by copying
-                BaseEvent.TcpEventHandler handler = this.eventHandler;
+                TcpEvent.TcpEventHandler handler = this.eventHandler;
                 if (handler != null)
                     handler(this, e);
             }
@@ -52,12 +52,12 @@ namespace TCPChannel.Protocol
 
         public void RegisterHandler(IEventHandler eh)
         {
-            this.eventHandler +=new BaseEvent.TcpEventHandler(eh.HandleEvent);
+            this.eventHandler +=new TcpEvent.TcpEventHandler(eh.HandleEvent);
         }
 
         public void UnregisterHandler(Event.IEventHandler eh)
         {
-            this.eventHandler -= new BaseEvent.TcpEventHandler(eh.HandleEvent);
+            this.eventHandler -= new TcpEvent.TcpEventHandler(eh.HandleEvent);
         }
     }
 }

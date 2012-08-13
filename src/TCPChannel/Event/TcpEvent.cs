@@ -7,14 +7,14 @@ using TCPChannel.Protocol;
 namespace TCPChannel.Event
 {
     [Serializable]
-    public abstract class BaseEvent : IEvent
+    public class TcpEvent : IEvent
     {
         public delegate void TcpEventHandler(IProtocol protocol, IEvent e);
 
         private int id;
         protected byte[] data;
 
-        public BaseEvent(int id, byte[] data)
+        public TcpEvent(int id, byte[] data)
         {
             this.id = id;
             this.data = data;
@@ -23,5 +23,15 @@ namespace TCPChannel.Event
         public int ID { get { return id; } }
 
         public byte[] Data { get { return data; } }
+    }
+
+    public enum EventId
+    {
+        Disconnect,
+        SendMessage,
+        Media,
+        Content,
+        Stack,
+        Schedule
     }
 }

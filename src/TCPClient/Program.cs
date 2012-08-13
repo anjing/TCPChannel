@@ -14,14 +14,27 @@ namespace TCPClient
     {
         static void Main(string[] args)
         {
+            string quit = "n";
             ITransport transport = TcpTransport.CreateTransport(45459);
             if (transport != null)
             {
-                UpdateMediaEvent e = new UpdateMediaEvent(100);
-                BinaryFormatter bf = new BinaryFormatter();
-                MemoryStream mem = new MemoryStream();
-                bf.Serialize(mem, e);
-                transport.Send(mem.GetBuffer());
+                while (quit == "n")
+                {
+
+                    IEvent e = new TcpEvent((int)EventId.Media, null);
+                    BinaryFormatter bf = new BinaryFormatter();
+                    MemoryStream mem = new MemoryStream();
+                    bf.Serialize(mem, e);
+                    transport.Send(mem.GetBuffer());
+                    Console.WriteLine("Quit?(y/n)");
+                    quit = Console.ReadLine();
+                }
+
+                IEvent d = new TcpEvent((int)EventId.Disconnect, null);
+                BinaryFormatter bfd = new BinaryFormatter();
+                MemoryStream memd = new MemoryStream();
+                bfd.Serialize(memd, d);
+                transport.Send(memd.GetBuffer());
             }
         }
     }

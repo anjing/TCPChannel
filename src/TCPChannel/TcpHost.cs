@@ -12,9 +12,7 @@ namespace TCPChannel
 {
     public class TcpHost : IEventHandler
     {
-        private const int PORT = 45654;
         private bool isRunning = false;
-        private State state = State.SUCCESS;
 
         private int port;
         private ITransport transport;
@@ -22,11 +20,12 @@ namespace TCPChannel
         private Queue<byte[]> rawMessageQ;
 
         private IProtocol tcpProtocol;
-        
+
         // threads
         private Thread dataListener;
         private Thread messageProcessor; //processes raw data from the listen port  
         private EventWaitHandle processGate;
+
         static private object traceLock = new object();
 
         public TcpHost()
@@ -40,17 +39,16 @@ namespace TCPChannel
         /// </summary>
         /// <param name="port"></param>
         /// <returns></returns>
-        public State Start(int port)
+        public bool Start(int port)
         {
             tcpProtocol = new TcpProcotol();
             tcpProtocol.RegisterHandler(this);
-            Console.WriteLine("Start listen port:{0}", port);
             this.port = port;
             try
             {
                 if (!isRunning)
                 {
-                    System.Console.Out.WriteLine("Starting listen threads...");
+                    Console.WriteLine("Start listen port:{0}", port);
                     isRunning = true;
                     ThreadStart ts = new ThreadStart(ListenForData);
                     dataListener = new Thread(ts);
@@ -61,131 +59,23 @@ namespace TCPChannel
                     messageProcessor = new Thread(ts);
                     messageProcessor.Start();
                 }
-                state = State.SUCCESS;
+                return true;
             }
             catch (Exception e)
             {
                 Console.WriteLine("Can not start event controller, error:{0}", e.Message);
-                state = State.ERROR;
-            }
-            return state;
-        }
-
-        #region Message Processor Thread
-        private void ProcessMessageList()
-        {
-            bool error = false;
-            byte[] rawMsg = null;
-            try
-            {
-                while (isRunning)
-                {
-                    while (rawMessageQ.Count > 0)
-                    {
-                        lock (rawMessageQ)
-                        {
-                            rawMsg = rawMessageQ.Dequeue();
-                        }
-                        try
-                        {
-                            if (tcpProtocol != null)
-                                tcpProtocol.ProcessIncomingMessage(rawMsg);
-                        }
-                        catch (Exception ex)
-                        {
-                            Console.WriteLine("Protocol process msg error:{0}", ex.Message);
-                            error = true;
-                        }
-                    }
-                    //wait for new message
-                    processGate.WaitOne();
-                }
-            }
-            //catch (ThreadAbortException)
-            //{
-
-            //}
-            //catch (ThreadInterruptedException)
-            //{
-
-            //}
-            catch (Exception e)
-            {
-                Console.WriteLine("Process msg error:{0}", e.Message);
-                error = true;
-            }
-            finally
-            {
-                Disconnect();
-                if (error)
-                    state = State.ERROR;
-            }
-        }
-        #endregion
-
-        #region Data Listener Thread
-        /// <summary>
-        /// Listen for incoming data on the port - creates messages from incoming data and adds it to processing list.
-        /// </summary>
-        private void ListenForData()
-        {
-            bool error = false;
-            try
-            {
-                //start listening the port
-                tcpListener = new TcpTransportListener(TcpTransport.LOCALHOST, port);
-                tcpListener.Start();
-
-                // Loop checking for data to become available
-                while (isRunning)
-                {
-                    // wait for client to connect
-                    TcpClient client = tcpListener.WaitForConnection();
-                    //transport = TcpTransport.CreateTransport(port);
-                    transport = new Transport.TcpTransport(client);
-                    if (!transport.IsConnected())
-                        break;
-
-                    if (tcpProtocol == null)
-                        break;
-                    byte[] messageRaw = transport.Read();
-                    // Add new message to inbound message queue
-                    lock (rawMessageQ)
-                    {
-                        rawMessageQ.Enqueue(messageRaw);
-                    }
-                    processGate.Set(); // wake up the process thread to process new messages
-                }
-            }
-            catch (ThreadInterruptedException)
-            {
-
-            }
-            catch (ThreadAbortException tae)
-            {
-                Console.WriteLine("Listen data process error:{0}", tae.Message);
-                error = true;
-            }
-            catch (Exception e)
-            {
-                Console.WriteLine("Listen data process error:{0}", e.Message);
-                error = true;
-            }
-            finally
-            {
-                Disconnect();
-                if (error)
-                    state = State.ERROR;
+                return false;
             }
         }
 
-        public void Disconnect()
+        public void Stop()
         {
             try
             {
                 isRunning = false;
                 processGate.Set(); // make sure we aren't proccessing anything
-                if (transport != null && ((messageProcessor != null && !messageProcessor.Join(1500)) || (dataListener != null && !dataListener.Join(1500))))
+                if (transport != null && ((messageProcessor != null && !messageProcessor.Join(1500)) ||
+                    (dataListener != null && !dataListener.Join(1500))))
                 {
                     transport.Close();
                     if (messageProcessor.ThreadState == ThreadState.Running && Thread.CurrentThread != messageProcessor)
@@ -200,7 +90,6 @@ namespace TCPChannel
                 {
                     tcpProtocol.Close();
                 }
-                state = State.CANCELED;
             }
             catch (Exception e)
             {
@@ -209,36 +98,108 @@ namespace TCPChannel
                 {
                     transport.Close();
                 }
-                state = State.ERROR;
                 if (tcpProtocol != null)
                     tcpProtocol.Close();
                 throw new Exception("Disconnect exception", e);
             }
         }
+
+        #region Message Processor Thread
+        private void ProcessMessageList()
+        {
+            byte[] rawMsg = null;
+            while (isRunning)
+            {
+                while (rawMessageQ.Count > 0)
+                {
+                    lock (rawMessageQ)
+                    {
+                        rawMsg = rawMessageQ.Dequeue();
+                    }
+                    try
+                    {
+                        if (tcpProtocol != null)
+                            tcpProtocol.ProcessIncomingMessage(rawMsg);
+                    }
+                    catch (Exception ex)
+                    {
+                        Console.WriteLine("Protocol process msg error:{0}", ex.Message);
+                    }
+                }
+                processGate.WaitOne();
+            }
+        }
         #endregion
 
-        public void Stop()
+        #region Data Listener Thread
+        /// <summary>
+        /// Listen for incoming data on the port - creates messages from incoming data and adds it to processing list.
+        /// </summary>
+        private void ListenForData()
         {
-            Disconnect();
+            //start listening the port
+            tcpListener = new TcpTransportListener(TcpTransport.LOCALHOST, port);
+            tcpListener.Start();
+            // Loop checking for data to become available
+            while (isRunning)
+            {
+                try
+                {
+                    // wait for client to connect
+                    if (tcpListener.State != TcpTransportListener.LISTENERSTATE.CONNECTED)
+                    {
+                        TcpClient client = tcpListener.WaitForConnection();
+                        Console.WriteLine("Client connected");
+                        transport = new Transport.TcpTransport(client);
+                    }
+                    if (!transport.IsConnected())
+                        break;
+
+                    if (tcpProtocol == null)
+                        break;
+                    byte[] messageRaw = transport.Read();
+                    // Add new message to inbound message queue
+                    lock (rawMessageQ)
+                    {
+                        rawMessageQ.Enqueue(messageRaw);
+                    }
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine("Listen data error:{0}", e.Message);
+                }
+                processGate.Set(); // wake up the process thread to process new messages
+            }
         }
+        #endregion
 
         #region IEventHandler
         public void HandleEvent(IProtocol protocol, IEvent e)
         {
-            if (e is ISendMessage)
+            EventId eid = (EventId)e.ID;
+            switch (eid)
             {
-                if (!protocol.isClosed())
-                {
-                    if (transport != null)
+                case EventId.Disconnect:
+                    Stop();
+                    break;
+                case EventId.SendMessage:
+                    if (!protocol.isClosed())
                     {
-                        ISendMessage sm = e as ISendMessage;
-                        transport.Send(sm.Data);
+                        if (transport != null)
+                        {
+                            transport.Send(e.Data);
+                        }
                     }
-                }
-            }
-            else if (e is IUpdateMediaEvent)
-            {
-                System.Console.WriteLine("update media event received, id-{0}", e.ID);
+                    break;
+                case EventId.Media:
+                    Console.WriteLine("media event received, id={0}", eid);
+                    break;
+                case EventId.Content:
+                    break;
+                case EventId.Stack:
+                    break;
+                case EventId.Schedule:
+                    break;
             }
         }
         #endregion
